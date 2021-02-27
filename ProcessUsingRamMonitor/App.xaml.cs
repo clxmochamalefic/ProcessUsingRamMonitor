@@ -1,4 +1,6 @@
 ﻿using Prism.Ioc;
+using Prism.Modularity;
+using ProcessUsingRamMonitor.UserControls;
 using ProcessUsingRamMonitor.Views;
 using System.Windows;
 
@@ -16,7 +18,11 @@ namespace ProcessUsingRamMonitor
 
         protected override void RegisterTypes(IContainerRegistry containerRegistry)
         {
+        }
 
+        protected override void ConfigureModuleCatalog(IModuleCatalog moduleCatalog)
+        {
+            moduleCatalog.AddModule<UserControlsModule>(InitializationMode.WhenAvailable);
         }
     }
 }

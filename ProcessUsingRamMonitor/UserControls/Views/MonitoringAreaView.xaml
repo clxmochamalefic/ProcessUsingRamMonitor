@@ -1,0 +1,49 @@
+﻿<UserControl x:Class="ProcessUsingRamMonitor.UserControls.Views.MonitoringAreaView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prism="http://prismlibrary.com/"             
+             xmlns:oxy="http://oxyplot.org/wpf"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignWidth="400"
+             d:DesignHeight="400"
+             prism:ViewModelLocator.AutoWireViewModel="True">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0"
+                    Margin="20"
+                    >
+            <TextBlock Text="aaaa" />
+            <oxy:Plot x:Name="plot"
+                      DataContext="{Binding Sample2}"
+                      >
+                <oxy:Plot.Axes>
+                    <oxy:TimeSpanAxis x:Name="x" Position="Bottom" />
+                    <oxy:LinearAxis x:Name="y" Position="Left" />
+                </oxy:Plot.Axes>
+                <oxy:LineSeries x:Name="series" ItemsSource="{Binding Samples}"  
+                            Title="Custom"
+                            DataFieldX="Time" DataFieldY="Value" />
+            </oxy:Plot>
+        </StackPanel>
+        <StackPanel Grid.Row="1" Margin="20">
+            <StackPanel Orientation="Horizontal">
+                <Button Margin="10, 0" Width="120" Content="すべてチェックを付ける" />
+                <Button Margin="10, 0" Width="120" Content="すべてのチェックを外す" />
+            </StackPanel>
+            <WrapPanel>
+                <CheckBox Margin="10" Content="物理メモリ(割当)" />
+                <CheckBox Margin="10" Content="物理メモリ(使用)" />
+                <CheckBox Margin="10" Content="ページング(割当)" />
+                <CheckBox Margin="10" Content="ページング(使用)" />
+                <CheckBox Margin="10" Content="仮想メモリ(割当)" />
+                <CheckBox Margin="10" Content="仮想メモリ(使用)" />
+                <CheckBox Margin="10" Content="プライベートメモリ" />
+            </WrapPanel>
+        </StackPanel>
+    </Grid>
+</UserControl>
