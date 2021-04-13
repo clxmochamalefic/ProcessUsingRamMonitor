@@ -55,4 +55,40 @@ namespace ProcessUsingRamMonitor.UserControls.Models
         /// </summary>
         public MemoryType MemoryType { get; set; }
     }
+
+    public record RecordRamMemoryDataModel
+    {
+        /// <summary>
+        /// 記録日時
+        /// </summary>
+        public DateTime RecordTime { get; set; }
+        /// <summary>
+        /// 物理確保メモリ
+        /// </summary>
+        public long WorkingSet { get; set; }
+        /// <summary>
+        /// 物理使用メモリ
+        /// </summary>
+        public long PeakWorkingSet { get; set; }
+        /// <summary>
+        /// ページング確保メモリ
+        /// </summary>
+        public long Paged { get; set; }
+        /// <summary>
+        /// ページング使用メモリ
+        /// </summary>
+        public long PeakPaged { get; set; }
+        /// <summary>
+        /// 仮想確保メモリ
+        /// </summary>
+        public long Virtual { get; set; }
+        /// <summary>
+        /// 仮想使用メモリ
+        /// </summary>
+        public long PeakVirtual { get; set; }
+        /// <summary>
+        /// プライベートメモリ
+        /// </summary>
+        public long Private { get; set; }
+    }
 }

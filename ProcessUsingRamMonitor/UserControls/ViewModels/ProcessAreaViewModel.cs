@@ -1,5 +1,6 @@
 ﻿using Prism.Commands;
 using Prism.Mvvm;
+using ProcessUsingRamMonitor.Controllers;
 using ProcessUsingRamMonitor.UserControls.Models;
 using Reactive.Bindings;
 using System;
@@ -17,16 +18,51 @@ namespace ProcessUsingRamMonitor.UserControls.ViewModels
     public class ProcessAreaViewModel : BindableBase, IDisposable
     {
         private ProcessAreaModel _model = new();
+
+        private bool _isRecording;
+
+        private RamMonitorRecordController _controller;
+
         public ReadOnlyReactiveCollection<ProcessDetailModel> Processes { get; internal set; }
+
+        public ReactiveProperty<ProcessDetailModel> SelectedProcess { get; } = new();
 
         public ReactiveProperty<string> FindProcessName { get; set; } = new();
 
+        public ReactiveProperty<string> RecordingStatus { get; } = new();
+
         public ReactiveCommand ReloadCommand { get; } = new();
+
+        public ReactiveCommand RecordCommand { get; } = new();
         public ProcessAreaViewModel()
         {
             Processes = _model.ProcessDetails.ToReadOnlyReactiveCollection();
             FindProcessName.Subscribe(x => _ModifyFindProcessName(x));
+            RecordingStatus.Subscribe(x => _model.RecordingStatus = x);
+            SelectedProcess.Subscribe(x => _model.SelectedProcess = x);
+
             ReloadCommand.Subscribe(() => _ReloadAction());
+            RecordCommand.Subscribe(() =>
+            {
+                _isRecording = !_isRecording;
+                RecordingStatus.Value = _isRecording ? "Stop" : "Start";
+
+                if (_isRecording)
+                {
+                    _controller = new(new()
+                    {
+                        Pid = _model.SelectedProcess.Pid,
+                        Name = _model.SelectedProcess.Name
+                    });
+
+                    _controller.Begin();
+                }
+                else
+                {
+                    _controller.End();
+                }
+            });
+            RecordingStatus.Value = "Start";
         }
 
         private void _ModifyFindProcessName(string value)
@@ -77,7 +113,10 @@ namespace ProcessUsingRamMonitor.UserControls.ViewModels
         {
             FindProcessName.Dispose();
             Processes.Dispose();
+            RecordingStatus.Dispose();
+
             ReloadCommand.Dispose();
+            RecordCommand.Dispose();
         }
     }
 }

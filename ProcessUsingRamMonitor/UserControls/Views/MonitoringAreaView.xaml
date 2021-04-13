@@ -19,13 +19,13 @@
                     >
             <TextBlock Text="aaaa" />
             <oxy:Plot x:Name="plot"
-                      DataContext="{Binding Sample2}"
+                      DataContext="{Binding}"
                       >
                 <oxy:Plot.Axes>
                     <oxy:TimeSpanAxis x:Name="x" Position="Bottom" />
                     <oxy:LinearAxis x:Name="y" Position="Left" />
                 </oxy:Plot.Axes>
-                <oxy:LineSeries x:Name="series" ItemsSource="{Binding Samples}"  
+                <oxy:LineSeries x:Name="series" ItemsSource="{Binding MemoryDatas}"  
                             Title="Custom"
                             DataFieldX="Time" DataFieldY="Value" />
             </oxy:Plot>

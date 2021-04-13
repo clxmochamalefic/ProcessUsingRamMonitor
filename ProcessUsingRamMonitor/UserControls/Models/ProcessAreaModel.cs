@@ -33,5 +33,19 @@ namespace ProcessUsingRamMonitor.UserControls.Models
             get { return _processDetails; }
             set { SetProperty(ref _processDetails, value); }
         }
+
+        private ProcessDetailModel _selectedProcess = new();
+        public ProcessDetailModel SelectedProcess
+        {
+            get { return _selectedProcess; }
+            set { SetProperty(ref _selectedProcess, value); }
+        }
+
+        private string _recordingStatus;
+        public string RecordingStatus
+        {
+            get { return _recordingStatus; }
+            set { SetProperty(ref _recordingStatus, value); }
+        }
     }
 }
