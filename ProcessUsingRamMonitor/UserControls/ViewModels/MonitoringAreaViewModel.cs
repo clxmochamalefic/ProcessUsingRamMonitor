@@ -57,7 +57,27 @@ namespace ProcessUsingRamMonitor.UserControls.ViewModels
             {
                 lock (_locker)
                 {
-                    if (_model.MonitoringProcess == null)
+                    if (Pid.Value == 0)
+                    {
+                        return;
+                    }
+
+                    Process process = null;
+                    try
+                    {
+                        process = Process.GetProcessById(Pid.Value);
+
+                        if (process.HasExited)
+                        {
+                            return;
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        return;
+                    }
+
+                    if (process == null)
                     {
                         return;
                     }
@@ -91,7 +111,7 @@ namespace ProcessUsingRamMonitor.UserControls.ViewModels
                     var newWorkingSet = new MemoryDataModel()
                     {
                         Time = DateTime.Now,
-                        Value = _model.MonitoringProcess.WorkingSet64,
+                        Value = process.WorkingSet64,
                         MemoryType = MemoryType.WorkingSet
                     };
                     _model.RamMonitorDatas.Add(newWorkingSet);
@@ -99,7 +119,7 @@ namespace ProcessUsingRamMonitor.UserControls.ViewModels
                     var newPeakWorkingSet = new MemoryDataModel()
                     {
                         Time = DateTime.Now,
-                        Value = _model.MonitoringProcess.PeakWorkingSet64,
+                        Value = process.PeakWorkingSet64,
                         MemoryType = MemoryType.PeakWorkingSet
                     };
                     _model.RamMonitorDatas.Add(newPeakWorkingSet);
@@ -107,7 +127,7 @@ namespace ProcessUsingRamMonitor.UserControls.ViewModels
                     var newPaged = new MemoryDataModel()
                     {
                         Time = DateTime.Now,
-                        Value = _model.MonitoringProcess.PagedMemorySize64,
+                        Value = process.PagedMemorySize64,
                         MemoryType = MemoryType.Paged
                     };
                     _model.RamMonitorDatas.Add(newPaged);
@@ -115,7 +135,7 @@ namespace ProcessUsingRamMonitor.UserControls.ViewModels
                     var newPeakPaged = new MemoryDataModel()
                     {
                         Time = DateTime.Now,
-                        Value = _model.MonitoringProcess.PeakPagedMemorySize64,
+                        Value = process.PeakPagedMemorySize64,
                         MemoryType = MemoryType.PeakPaged
                     };
                     _model.RamMonitorDatas.Add(newPeakPaged);
@@ -123,7 +143,7 @@ namespace ProcessUsingRamMonitor.UserControls.ViewModels
                     var newVirutal = new MemoryDataModel()
                     {
                         Time = DateTime.Now,
-                        Value = _model.MonitoringProcess.VirtualMemorySize64,
+                        Value = process.VirtualMemorySize64,
                         MemoryType = MemoryType.Virtual
                     };
                     _model.RamMonitorDatas.Add(newVirutal);
@@ -131,7 +151,7 @@ namespace ProcessUsingRamMonitor.UserControls.ViewModels
                     var newPeakVirtual = new MemoryDataModel()
                     {
                         Time = DateTime.Now,
-                        Value = _model.MonitoringProcess.PeakVirtualMemorySize64,
+                        Value = process.PeakVirtualMemorySize64,
                         MemoryType = MemoryType.PeakVirtual
                     };
                     _model.RamMonitorDatas.Add(newPeakVirtual);
@@ -139,7 +159,7 @@ namespace ProcessUsingRamMonitor.UserControls.ViewModels
                     var newPrivate = new MemoryDataModel()
                     {
                         Time = DateTime.Now,
-                        Value = _model.MonitoringProcess.PrivateMemorySize64,
+                        Value = process.PrivateMemorySize64,
                         MemoryType = MemoryType.Private
                     };
                     _model.RamMonitorDatas.Add(newPrivate);
@@ -214,7 +234,6 @@ namespace ProcessUsingRamMonitor.UserControls.ViewModels
             Pid.Value = pid;
             Name.Value = name;
 
-            _model.MonitoringProcess = Process.GetProcessById(pid);
             _model.RamMonitorDatas.Clear();
 
             workingSetValues.Clear();

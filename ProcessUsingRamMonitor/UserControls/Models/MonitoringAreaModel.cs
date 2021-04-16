@@ -24,8 +24,6 @@ namespace ProcessUsingRamMonitor.UserControls.Models
             get { return _name; }
             set { SetProperty(ref _name, value); }
         }
-
-        public Process MonitoringProcess { get; set; }
         
         private ObservableCollection<MemoryDataModel> _ramMonitorDatas = new();
         public ObservableCollection<MemoryDataModel> RamMonitorDatas

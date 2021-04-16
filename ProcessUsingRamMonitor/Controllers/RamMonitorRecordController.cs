@@ -17,7 +17,6 @@ namespace ProcessUsingRamMonitor.Controllers
         private readonly string _name;
 
         private string _filePath;
-        private Process _recordTargetProcess;
 
         private Timer _timer;
 
@@ -30,29 +29,21 @@ namespace ProcessUsingRamMonitor.Controllers
 
         public void Begin()
         {
-            _recordTargetProcess = Process.GetProcessById(_pid);
-            var now = DateTime.Now;
-            var model = new RecordRamMemoryDataModel
+            var data = _GetMemoryData(_pid);
+
+            if (data == null)
             {
-                WorkingSet = _recordTargetProcess.WorkingSet64,
-                PeakWorkingSet = _recordTargetProcess.PeakWorkingSet64,
-                Paged = _recordTargetProcess.PagedMemorySize64,
-                PeakPaged = _recordTargetProcess.PeakPagedMemorySize64,
-                Virtual = _recordTargetProcess.VirtualMemorySize64,
-                PeakVirtual = _recordTargetProcess.PeakVirtualMemorySize64,
-                Private = _recordTargetProcess.PrivateMemorySize64,
+                return;
+            }
 
-                RecordTime = now
-            };
-
-            _filePath = Path.Combine(System.Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), $"{_name}_RECORD_{now.ToString("yyyyMMddHHmmss")}.csv");
+            _filePath = Path.Combine(System.Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), $"{_name}_RECORD_{data.RecordTime.ToString("yyyyMMddHHmmss")}.csv");
 
             lock (_locker)
             {
                 using (var sw = new StreamWriter(_filePath, false, Encoding.UTF8))
                 {
                     sw.WriteLine(string.Format(format, "RecordTime", "WorkingSet", "PeakWorkingSet", "Paged", "PeakPaged", "Virtual", "PeakVirtual", "Private", "Note"));
-                    sw.WriteLine(string.Format(format, model.RecordTime, model.WorkingSet, model.PeakWorkingSet, model.Paged, model.PeakPaged, model.Virtual, model.PeakVirtual, model.Private, "記録開始"));
+                    sw.WriteLine(string.Format(format, data.RecordTime, data.WorkingSet, data.PeakWorkingSet, data.Paged, data.PeakPaged, data.Virtual, data.PeakVirtual, data.Private, "記録開始"));
                 }
             }
 
@@ -61,25 +52,18 @@ namespace ProcessUsingRamMonitor.Controllers
 
         public void End()
         {
-            var now = DateTime.Now;
-            var model = new RecordRamMemoryDataModel
-            {
-                WorkingSet = _recordTargetProcess.WorkingSet64,
-                PeakWorkingSet = _recordTargetProcess.PeakWorkingSet64,
-                Paged = _recordTargetProcess.PagedMemorySize64,
-                PeakPaged = _recordTargetProcess.PeakPagedMemorySize64,
-                Virtual = _recordTargetProcess.VirtualMemorySize64,
-                PeakVirtual = _recordTargetProcess.PeakVirtualMemorySize64,
-                Private = _recordTargetProcess.PrivateMemorySize64,
+            var data = _GetMemoryData(_pid);
 
-                RecordTime = now
-            };
+            if (data == null)
+            {
+                return;
+            }
 
             lock (_locker)
             {
                 using (var sw = new StreamWriter(_filePath, true, Encoding.UTF8))
                 {
-                    sw.WriteLine(string.Format(format, model.RecordTime, model.WorkingSet, model.PeakWorkingSet, model.Paged, model.PeakPaged, model.Virtual, model.PeakVirtual, model.Private, "記録終了"));
+                    sw.WriteLine(string.Format(format, data.RecordTime, data.WorkingSet, data.PeakWorkingSet, data.Paged, data.PeakPaged, data.Virtual, data.PeakVirtual, data.Private, "記録終了"));
                 }
             }
 
@@ -88,27 +72,64 @@ namespace ProcessUsingRamMonitor.Controllers
 
         private void _Proc(object state)
         {
-            var now = DateTime.Now;
-            var model = new RecordRamMemoryDataModel
-            {
-                WorkingSet = _recordTargetProcess.WorkingSet64,
-                PeakWorkingSet = _recordTargetProcess.PeakWorkingSet64,
-                Paged = _recordTargetProcess.PagedMemorySize64,
-                PeakPaged = _recordTargetProcess.PeakPagedMemorySize64,
-                Virtual = _recordTargetProcess.VirtualMemorySize64,
-                PeakVirtual = _recordTargetProcess.PeakVirtualMemorySize64,
-                Private = _recordTargetProcess.PrivateMemorySize64,
+            var data = _GetMemoryData(_pid);
 
-                RecordTime = now
-            };
+            if (data == null)
+            {
+                return;
+            }
 
             lock (_locker)
             {
                 using (var sw = new StreamWriter(_filePath, true, Encoding.UTF8))
                 {
-                    sw.WriteLine(string.Format(format, model.RecordTime, model.WorkingSet, model.PeakWorkingSet, model.Paged, model.PeakPaged, model.Virtual, model.PeakVirtual, model.Private, "毎秒記録"));
+                    sw.WriteLine(string.Format(format, data.RecordTime, data.WorkingSet, data.PeakWorkingSet, data.Paged, data.PeakPaged, data.Virtual, data.PeakVirtual, data.Private, "毎秒記録"));
                 }
             }
+        }
+
+        private RecordRamMemoryDataModel _GetMemoryData(int pid)
+        {
+            if (pid == 0)
+            {
+                return null;
+            }
+
+            Process process = null;
+            try
+            {
+                process = Process.GetProcessById(pid);
+
+                if (process.HasExited)
+                {
+                    return null;
+                }
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+
+            if (process == null)
+            {
+                return null;
+            }
+
+            var now = DateTime.Now;
+            var model = new RecordRamMemoryDataModel
+            {
+                WorkingSet = process.WorkingSet64,
+                PeakWorkingSet = process.PeakWorkingSet64,
+                Paged = process.PagedMemorySize64,
+                PeakPaged = process.PeakPagedMemorySize64,
+                Virtual = process.VirtualMemorySize64,
+                PeakVirtual = process.PeakVirtualMemorySize64,
+                Private = process.PrivateMemorySize64,
+
+                RecordTime = now
+            };
+
+            return model;
         }
     }
 }
