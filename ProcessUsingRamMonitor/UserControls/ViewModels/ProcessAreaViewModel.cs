@@ -1,7 +1,9 @@
 ﻿using Prism.Commands;
 using Prism.Mvvm;
+using Prism.Regions;
 using ProcessUsingRamMonitor.Controllers;
 using ProcessUsingRamMonitor.UserControls.Models;
+using ProcessUsingRamMonitor.UserControls.Views;
 using Reactive.Bindings;
 using System;
 using System.Collections.Generic;
@@ -12,6 +14,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
+using Unity;
 
 namespace ProcessUsingRamMonitor.UserControls.ViewModels
 {
@@ -22,6 +25,9 @@ namespace ProcessUsingRamMonitor.UserControls.ViewModels
         private bool _isRecording;
 
         private RamMonitorRecordController _controller;
+
+        [Dependency]
+        public IRegionManager RegionManager { get; set; }
 
         public ReadOnlyReactiveCollection<ProcessDetailModel> Processes { get; internal set; }
 
@@ -39,7 +45,18 @@ namespace ProcessUsingRamMonitor.UserControls.ViewModels
             Processes = _model.ProcessDetails.ToReadOnlyReactiveCollection();
             FindProcessName.Subscribe(x => _ModifyFindProcessName(x));
             RecordingStatus.Subscribe(x => _model.RecordingStatus = x);
-            SelectedProcess.Subscribe(x => _model.SelectedProcess = x);
+            SelectedProcess.Subscribe(x =>
+            {
+                _model.SelectedProcess = x;
+                var param = new NavigationParameters();
+                param.Add("pid", x?.Pid ?? 0);
+                param.Add("name", x?.Name ?? string.Empty);
+
+                if (RegionManager != null)
+                {
+                    RegionManager.RequestNavigate("MonitoringRegion", nameof(MonitoringAreaView), param);
+                }
+            });
 
             ReloadCommand.Subscribe(() => _ReloadAction());
             RecordCommand.Subscribe(() =>

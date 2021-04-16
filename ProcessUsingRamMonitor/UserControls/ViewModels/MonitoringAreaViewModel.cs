@@ -1,85 +1,235 @@
-﻿using OxyPlot;
+﻿using LiveCharts;
+using LiveCharts.Wpf;
 using Prism.Commands;
 using Prism.Mvvm;
+using Prism.Regions;
 using ProcessUsingRamMonitor.UserControls.Models;
 using Reactive.Bindings;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Reactive.Linq;
+using System.Windows.Threading;
 
 namespace ProcessUsingRamMonitor.UserControls.ViewModels
 {
-    public class MonitoringAreaViewModel : BindableBase
+    public class MonitoringAreaViewModel : BindableBase, INavigationAware, IDisposable
     {
         private MonitoringAreaModel _model = new();
 
+        public SeriesCollection SeriesCollection { get; set; } = new();
+
+        public List<string> LabelsBase { get; set; } = new();
+
+        public ReadOnlyReactiveCollection<string> Labels;
+
+        public Func<double, string> YFormatter { get; set; }
+
+
+        public ReactivePropertySlim<int> Pid { get; } = new();
+
+        public ReactivePropertySlim<string> Name { get; } = new();
+
         public ReadOnlyReactiveCollection<MemoryDataModel> MemoryDatas { get; }
 
-        public ReactiveProperty<PlotModel> PlotModel { get; } = new();
-        public ReactiveProperty<PlotController> Controller { get; } = new();
+        private ReactiveTimer _timer = new(TimeSpan.FromSeconds(1));
 
+        private object _locker = new();
+
+        private ChartValues<long> workingSetValues = new ChartValues<long>();
+        private ChartValues<long> peakWorkingSetValues = new ChartValues<long>();
+        private ChartValues<long> pagedValues = new ChartValues<long>();
+        private ChartValues<long> peakPagedValues = new ChartValues<long>();
+        private ChartValues<long> virtualValues = new ChartValues<long>();
+        private ChartValues<long> peakVirtualValues = new ChartValues<long>();
+        private ChartValues<long> privateValues = new ChartValues<long>();
 
         public MonitoringAreaViewModel()
         {
+            Pid.Subscribe(x => _model.Pid = x);
+            Name.Subscribe(x => _model.Name = x);
+
+            Labels = _model.RamMonitorDatas.Select(x => x.Time.ToString("HHmmss")).ToObservable().ToReadOnlyReactiveCollection();
+
             MemoryDatas = _model.RamMonitorDatas.ToReadOnlyReactiveCollection();
+            _timer.Subscribe(x =>
+            {
+                lock (_locker)
+                {
+                    if (_model.MonitoringProcess == null)
+                    {
+                        return;
+                    }
+
+                    if (_model.RamMonitorDatas.Count() >= 60 * 7)
+                    {
+                        var removeWorkingSet = _model.RamMonitorDatas.Where(x => x.MemoryType == MemoryType.WorkingSet).OrderBy(x => x.Time).FirstOrDefault();
+                        _model.RamMonitorDatas.Remove(removeWorkingSet);
+                        var removePeakWorkingSet = _model.RamMonitorDatas.Where(x => x.MemoryType == MemoryType.PeakWorkingSet).OrderBy(x => x.Time).FirstOrDefault();
+                        _model.RamMonitorDatas.Remove(removePeakWorkingSet);
+                        var removePaged = _model.RamMonitorDatas.Where(x => x.MemoryType == MemoryType.Paged).OrderBy(x => x.Time).FirstOrDefault();
+                        _model.RamMonitorDatas.Remove(removePaged);
+                        var removePeakPaged = _model.RamMonitorDatas.Where(x => x.MemoryType == MemoryType.PeakPaged).OrderBy(x => x.Time).FirstOrDefault();
+                        _model.RamMonitorDatas.Remove(removePeakPaged);
+                        var removeVirtual = _model.RamMonitorDatas.Where(x => x.MemoryType == MemoryType.Virtual).OrderBy(x => x.Time).FirstOrDefault();
+                        _model.RamMonitorDatas.Remove(removeVirtual);
+                        var removePeakVirtual = _model.RamMonitorDatas.Where(x => x.MemoryType == MemoryType.PeakVirtual).OrderBy(x => x.Time).FirstOrDefault();
+                        _model.RamMonitorDatas.Remove(removePeakVirtual);
+                        var removePrivate = _model.RamMonitorDatas.Where(x => x.MemoryType == MemoryType.Private).OrderBy(x => x.Time).FirstOrDefault();
+                        _model.RamMonitorDatas.Remove(removePrivate);
+
+                        workingSetValues.RemoveAt(0);
+                        peakWorkingSetValues.RemoveAt(0);
+                        pagedValues.RemoveAt(0);
+                        peakPagedValues.RemoveAt(0);
+                        virtualValues.RemoveAt(0);
+                        peakVirtualValues.RemoveAt(0);
+                        privateValues.RemoveAt(0);
+                    }
+
+                    var newWorkingSet = new MemoryDataModel()
+                    {
+                        Time = DateTime.Now,
+                        Value = _model.MonitoringProcess.WorkingSet64,
+                        MemoryType = MemoryType.WorkingSet
+                    };
+                    _model.RamMonitorDatas.Add(newWorkingSet);
+
+                    var newPeakWorkingSet = new MemoryDataModel()
+                    {
+                        Time = DateTime.Now,
+                        Value = _model.MonitoringProcess.PeakWorkingSet64,
+                        MemoryType = MemoryType.PeakWorkingSet
+                    };
+                    _model.RamMonitorDatas.Add(newPeakWorkingSet);
+
+                    var newPaged = new MemoryDataModel()
+                    {
+                        Time = DateTime.Now,
+                        Value = _model.MonitoringProcess.PagedMemorySize64,
+                        MemoryType = MemoryType.Paged
+                    };
+                    _model.RamMonitorDatas.Add(newPaged);
+
+                    var newPeakPaged = new MemoryDataModel()
+                    {
+                        Time = DateTime.Now,
+                        Value = _model.MonitoringProcess.PeakPagedMemorySize64,
+                        MemoryType = MemoryType.PeakPaged
+                    };
+                    _model.RamMonitorDatas.Add(newPeakPaged);
+
+                    var newVirutal = new MemoryDataModel()
+                    {
+                        Time = DateTime.Now,
+                        Value = _model.MonitoringProcess.VirtualMemorySize64,
+                        MemoryType = MemoryType.Virtual
+                    };
+                    _model.RamMonitorDatas.Add(newVirutal);
+
+                    var newPeakVirtual = new MemoryDataModel()
+                    {
+                        Time = DateTime.Now,
+                        Value = _model.MonitoringProcess.PeakVirtualMemorySize64,
+                        MemoryType = MemoryType.PeakVirtual
+                    };
+                    _model.RamMonitorDatas.Add(newPeakVirtual);
+
+                    var newPrivate = new MemoryDataModel()
+                    {
+                        Time = DateTime.Now,
+                        Value = _model.MonitoringProcess.PrivateMemorySize64,
+                        MemoryType = MemoryType.Private
+                    };
+                    _model.RamMonitorDatas.Add(newPrivate);
+
+
+                    LabelsBase.Clear();
+
+                    workingSetValues.Add(newWorkingSet.Value);
+                    peakWorkingSetValues.Add(newPeakWorkingSet.Value);
+                    pagedValues.Add(newPaged.Value);
+                    peakPagedValues.Add(newPeakPaged.Value);
+                    virtualValues.Add(newVirutal.Value);
+                    peakVirtualValues.Add(newPeakVirtual.Value);
+                    privateValues.Add(newPrivate.Value);
+                }
+            });
+            _timer.Start();
+
+            SeriesCollection.Add(new LineSeries()
+            {
+                Values = workingSetValues,
+                Title = MemoryType.WorkingSet.ToString()
+            });
+            SeriesCollection.Add(new LineSeries()
+            {
+                Values = peakWorkingSetValues,
+                Title = MemoryType.PeakWorkingSet.ToString()
+            });
+            SeriesCollection.Add(new LineSeries()
+            {
+                Values = pagedValues,
+                Title = MemoryType.Paged.ToString()
+            });
+            SeriesCollection.Add(new LineSeries()
+            {
+                Values = peakPagedValues,
+                Title = MemoryType.PeakPaged.ToString()
+            });
+            SeriesCollection.Add(new LineSeries()
+            {
+                Values = virtualValues,
+                Title = MemoryType.Virtual.ToString()
+            });
+            SeriesCollection.Add(new LineSeries()
+            {
+                Values = peakVirtualValues,
+                Title = MemoryType.PeakVirtual.ToString()
+            });
+            SeriesCollection.Add(new LineSeries()
+            {
+                Values = privateValues,
+                Title = MemoryType.Private.ToString()
+            });
+
+            YFormatter = value => value.ToString();
         }
 
-        private void Init()
+        public void Dispose()
         {
-            _model.RamMonitorDatas.Add(new MemoryDataModel { Time = new DateTime(1990, 12, 1, 0, 0, 0), Value = 0});
-            _model.RamMonitorDatas.Add(new MemoryDataModel { Time = new DateTime(1990, 12, 1, 0, 0, 1), Value = 0});
-            _model.RamMonitorDatas.Add(new MemoryDataModel { Time = new DateTime(1990, 12, 1, 0, 0, 2), Value = 0});
-            _model.RamMonitorDatas.Add(new MemoryDataModel { Time = new DateTime(1990, 12, 1, 0, 0, 3), Value = 0});
-            _model.RamMonitorDatas.Add(new MemoryDataModel { Time = new DateTime(1990, 12, 1, 0, 0, 4), Value = 0});
+            Pid.Dispose();
+            Name.Dispose();
 
-
-            PlotModel.Value.Title = "PlotView";
-
-            // 軸の初期化
-            _model.X.Position = OxyPlot.Axes.AxisPosition.Bottom;
-            _model.Y.Position = OxyPlot.Axes.AxisPosition.Left;
-
-            // 線グラフ
-            _model.LineSeries = new OxyPlot.Series.LineSeries();
-            _model.LineSeries.Title = "Custom";
-            _model.LineSeries.ItemsSource = MemoryDatas;
-            _model.LineSeries.DataFieldX = nameof(MemoryDataModel.Time);
-            _model.LineSeries.DataFieldY = nameof(MemoryDataModel.Value);
-
-            var a = 1;
-            var b = 2;
-
-            // 関数グラフ
-            _model.FunctionSeries = new OxyPlot.Series.FunctionSeries
-            (
-                x => a * x + b, 0, 30, 5, "Y = ax + b"
-            );
-
-            PlotModel.Value.Axes.Add(_model.X);
-            PlotModel.Value.Axes.Add(_model.Y);
-            PlotModel.Value.Series.Add(_model.LineSeries);
-            PlotModel.Value.Series.Add(_model.FunctionSeries);
-
-            PlotModel.Value.InvalidatePlot(true);
+            MemoryDatas.Dispose();
+            _timer.Dispose();
         }
 
-        private void InitController()
+        public void OnNavigatedTo(NavigationContext navigationContext)
         {
-            // グラフのマウス操作およびキー操作の初期化
-            Controller.Value.UnbindKeyDown(OxyKey.A);
-            Controller.Value.UnbindKeyDown(OxyKey.C, OxyModifierKeys.Control);
-            Controller.Value.UnbindKeyDown(OxyKey.C, OxyModifierKeys.Control | OxyModifierKeys.Alt);
-            Controller.Value.UnbindKeyDown(OxyKey.R, OxyModifierKeys.Control | OxyModifierKeys.Alt);
-            Controller.Value.UnbindTouchDown();
+            var pid = (int)navigationContext.Parameters["pid"];
+            var name = navigationContext.Parameters["name"].ToString();
 
-            Controller.Value.UnbindMouseDown(OxyMouseButton.Left);
-            Controller.Value.UnbindMouseDown(OxyMouseButton.Middle);
-            Controller.Value.UnbindMouseDown(OxyMouseButton.Right);
+            Pid.Value = pid;
+            Name.Value = name;
 
-            Controller.Value.BindMouseDown(OxyMouseButton.Left, PlotCommands.PanAt);
-            Controller.Value.BindMouseDown(OxyMouseButton.Middle, PlotCommands.PointsOnlyTrack);
-            Controller.Value.BindMouseDown(OxyMouseButton.Right, PlotCommands.ZoomRectangle);
+            _model.MonitoringProcess = Process.GetProcessById(pid);
+            _model.RamMonitorDatas.Clear();
+
+            workingSetValues.Clear();
+            peakWorkingSetValues.Clear();
+            pagedValues.Clear();
+            peakPagedValues.Clear();
+            virtualValues.Clear();
+            peakVirtualValues.Clear();
+            privateValues.Clear();
         }
 
+        public bool IsNavigationTarget(NavigationContext navigationContext) => true;
+
+        public void OnNavigatedFrom(NavigationContext navigationContext)
+        {
+        }
     }
 }
